@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bouncing Ball Studio</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="app">
+  <!-- ================= SIDEBAR ================= -->
+  <aside id="sidebar">
+    <h1>🔷 Bouncing Ball Studio</h1>
+    <div class="sub">Neon balls in a spinning shape, with gravity pulling them down</div>
+
+    <!-- Scene -->
+    <details class="section" open>
+      <summary>Scene</summary>
+      <div class="body">
+        <div class="row">
+          <label>Shape <span class="val" id="sidesVal"></span></label>
+          <input type="range" id="sides" min="3" max="12" step="1">
+        </div>
+        <div class="row">
+          <label>Mode</label>
+          <div class="modes" id="modes"></div>
+          <div class="desc" id="modeDesc"></div>
+        </div>
+        <div class="row" data-modes="escape nested">
+          <label>Gap size <span class="val" id="gapVal"></span></label>
+          <input type="range" id="gap" min="0.1" max="0.9" step="0.05">
+        </div>
+        <label class="toggle" data-modes="escape">
+          <span>♻️ Respawn escaped balls</span>
+          <input type="checkbox" id="respawn"><span class="switch"></span>
+        </label>
+        <div class="row" data-modes="split">
+          <label>Max balls <span class="val" id="maxBallsVal"></span></label>
+          <input type="range" id="maxBalls" min="10" max="500" step="10">
+        </div>
+        <div class="row" data-modes="grow">
+          <label>Growth per hit <span class="val" id="growthVal"></span></label>
+          <input type="range" id="growth" min="0.2" max="6" step="0.1">
+        </div>
+      </div>
+    </details>
+
+    <!-- Actions -->
+    <details class="section" open>
+      <summary>Actions</summary>
+      <div class="body">
+        <div class="btns">
+          <button class="btn primary" id="btnPause">⏸ Pause</button>
+          <button class="btn" id="btnReset">↺ Reset</button>
+          <button class="btn" id="btnAdd">＋ Add Ball</button>
+          <button class="btn" id="btnShake">💥 Shake</button>
+          <button class="btn" id="btnReverse">🔄 Reverse Spin</button>
+          <button class="btn" id="btnRandom">🎲 Randomize</button>
+        </div>
+      </div>
+    </details>
+
+    <!-- Settings -->
+    <details class="section" open>
+      <summary>Settings</summary>
+      <div class="body">
+        <div class="row">
+          <label>Spin speed <span class="val" id="spinVal"></span></label>
+          <input type="range" id="spin" min="-360" max="360" step="5">
+        </div>
+        <div class="row">
+          <label>Gravity <span class="val" id="gravityVal"></span></label>
+          <input type="range" id="gravity" min="0" max="2500" step="50">
+        </div>
+        <div class="row">
+          <label>Bounciness <span class="val" id="bounceVal"></span></label>
+          <input type="range" id="bounce" min="0.3" max="1.1" step="0.01">
+        </div>
+        <div class="row">
+          <label>Number of balls <span class="val" id="countVal"></span></label>
+          <input type="range" id="count" min="1" max="40" step="1">
+        </div>
+        <div class="row">
+          <label>Ball size <span class="val" id="sizeVal"></span></label>
+          <input type="range" id="size" min="4" max="30" step="1">
+        </div>
+        <div class="row">
+          <label>Trail length <span class="val" id="trailVal"></span></label>
+          <input type="range" id="trail" min="0" max="80" step="1">
+        </div>
+        <label class="toggle">
+          <span>🔊 Sound on each bounce</span>
+          <input type="checkbox" id="sound"><span class="switch"></span>
+        </label>
+        <div class="row">
+          <label>Volume <span class="val" id="volumeVal"></span></label>
+          <input type="range" id="volume" min="0" max="100" step="1">
+        </div>
+        <label class="toggle">
+          <span>🎱 Balls hit each other</span>
+          <input type="checkbox" id="collide"><span class="switch"></span>
+        </label>
+      </div>
+    </details>
+
+    <!-- Recording -->
+    <details class="section">
+      <summary>Recording</summary>
+      <div class="body">
+        <div class="btns">
+          <button class="btn rec full" id="btnRec">⏺ Start Recording</button>
+          <button class="btn full" id="btnShot">📸 Save Screenshot</button>
+        </div>
+        <div class="recstat"><span class="dot" id="recDot"></span><span id="recTime">Not recording</span></div>
+        <label class="toggle">
+          <span>🎵 Include sound in video</span>
+          <input type="checkbox" id="recAudio" checked><span class="switch"></span>
+        </label>
+        <div class="note">Videos save as .webm (or .mp4 in some browsers) when you press Stop.</div>
+      </div>
+    </details>
+
+    <div class="keys">
+      <kbd>Space</kbd> pause &nbsp; <kbd>R</kbd> reset &nbsp; <kbd>B</kbd> add ball<br>
+      <kbd>S</kbd> shake &nbsp; <kbd>M</kbd> mute &nbsp; <kbd>←</kbd><kbd>→</kbd> sides &nbsp; <kbd>↑</kbd><kbd>↓</kbd> spin<br>
+      Click the canvas to drop a ball there.
+    </div>
+  </aside>
+
+  <!-- ================= STAGE ================= -->
+  <main id="stage">
+    <canvas id="c"></canvas>
+    <div class="hud">
+      <div class="pill">Balls <b id="hBalls">0</b></div>
+      <div class="pill">Bounces <b id="hBounces">0</b></div>
+      <div class="pill" id="hEscWrap">Escaped <b id="hEsc">0</b></div>
+      <div class="pill"><b id="hFps">60</b> fps</div>
+    </div>
+    <div class="pill" id="badge"></div>
+    <div id="pausedTag">PAUSED</div>
+    <div id="toast"></div>
+    <div id="hint">Click to drop a ball · Space to pause · R to reset</div>
+  </main>
+</div>
+
+
+  <script src="js/app.js" defer></script>
+</body>
+</html>
