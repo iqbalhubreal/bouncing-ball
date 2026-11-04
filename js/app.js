@@ -15,7 +15,7 @@
 
   // ---------- State ----------
   const S = { sides:6, spin:60, gravity:900, bounce:0.92, count:3, size:12, trail:25,
-              sound:true, volume:50, collide:false, mode:"classic",
+              sound:true, nature:true, volume:50, collide:false, mode:"classic",
               gap:0.4, respawn:true, maxBalls:250, growth:1.5 };
 
   const canvas = $("c"), ctx = canvas.getContext("2d"), stage = $("stage");
@@ -135,6 +135,7 @@
     if (impact < 35) return;                 // ignore resting contact
     stats.bounces++; s.flash = 1; b.flash = 1;
     playBounce(b, impact);
+    if (stats.bounces % 3 === 0) playNatureDrop();
     if (b.cool > 0) return;
     b.cool = 0.12;
 
@@ -289,6 +290,7 @@
         master.connect(actx.destination);
       }
       if (actx.state === "suspended") actx.resume();
+      if (S.nature) startNature();
     }catch(e){ /* audio not available */ }
   }
 
@@ -307,6 +309,38 @@
     g.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
     o.connect(g); g.connect(master);
     o.start(now); o.stop(now + 0.3);
+  }
+
+  // A quiet, dependency-free nature bed: filtered rain-like noise with a slow wind swell.
+  let natureBed = null;
+  function startNature(){
+    if (!S.nature || !actx || natureBed) return;
+    const noise = actx.createBufferSource(), buf = actx.createBuffer(1, actx.sampleRate * 2, actx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    noise.buffer = buf; noise.loop = true;
+    const rain = actx.createBiquadFilter(), wind = actx.createBiquadFilter(), gain = actx.createGain();
+    rain.type = "bandpass"; rain.frequency.value = 1450; rain.Q.value = 0.7;
+    wind.type = "lowpass"; wind.frequency.value = 360;
+    gain.gain.value = 0.018 * (S.volume / 100);
+    const lfo = actx.createOscillator(), lfoGain = actx.createGain();
+    lfo.frequency.value = 0.075; lfoGain.gain.value = 0.012;
+    lfo.connect(lfoGain); lfoGain.connect(gain.gain);
+    noise.connect(rain); noise.connect(wind); rain.connect(gain); wind.connect(gain); gain.connect(master);
+    noise.start(); lfo.start(); natureBed = {noise, lfo, gain};
+  }
+  function stopNature(){
+    if (!natureBed) return;
+    natureBed.noise.stop(); natureBed.lfo.stop(); natureBed = null;
+  }
+  function playNatureDrop(){
+    if (!S.nature || !actx || actx.state !== "running") return;
+    const now = actx.currentTime, o = actx.createOscillator(), g = actx.createGain();
+    o.type = "sine"; o.frequency.setValueAtTime(900 + Math.random()*500, now);
+    o.frequency.exponentialRampToValueAtTime(420, now + 0.16);
+    g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.045, now + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + 0.18); o.connect(g); g.connect(master);
+    o.start(now); o.stop(now + 0.2);
   }
 
   // ---------- Main loop ----------
@@ -369,7 +403,7 @@
     ["maxBalls", v => v],
     ["growth",   v => `+${v.toFixed(1)}px`]
   ];
-  const TOGGLES = ["sound", "collide", "respawn"];
+  const TOGGLES = ["sound", "nature", "collide", "respawn"];
 
   RANGES.forEach(([k, fmt, cb]) => {
     const el = $(k);
@@ -381,7 +415,8 @@
   });
   TOGGLES.forEach(k => $(k).addEventListener("change", e => {
     S[k] = e.target.checked;
-    if (k === "sound" && S.sound) ensureAudio();
+    if ((k === "sound" || k === "nature") && e.target.checked){ ensureAudio(); startNature(); }
+    if (k === "nature" && !S.nature) stopNature();
   }));
 
   function syncUI(){
