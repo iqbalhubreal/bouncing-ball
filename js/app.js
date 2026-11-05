@@ -14,7 +14,7 @@
   };
 
   // ---------- State ----------
-  const S = { sides:6, spin:60, gravity:900, bounce:0.92, count:3, size:12, trail:25,
+  const S = { sides:6, spin:60, gravity:900, bounce:0.92, count:3, size:12, trail:25, zoom:1,
               sound:true, nature:true, volume:50, collide:false, mode:"classic",
               gap:0.4, respawn:true, maxBalls:250, growth:1.5 };
 
@@ -270,11 +270,16 @@
   }
 
   function render(){
+    ctx.save();
+    ctx.translate(center.x, center.y);
+    ctx.scale(S.zoom, S.zoom);
+    ctx.translate(-center.x, -center.y);
     drawBackground();
     ctx.globalCompositeOperation = "lighter";
     for (const s of shapes) drawShape(s);
     for (const b of balls) drawBall(b);
     ctx.globalCompositeOperation = "source-over";
+    ctx.restore();
   }
 
   // ---------- Sound ----------
@@ -494,12 +499,26 @@
   $("btnRandom").onclick = randomize;
 
   canvas.addEventListener("pointerdown", e => {
+    if (e.pointerType === "touch") return;
     const r = canvas.getBoundingClientRect();
     const x = e.clientX - r.left, y = e.clientY - r.top;
     if (Math.hypot(x - center.x, y - center.y) < shapes[0].r && balls.length < HARD_CAP){
       balls.push(spawnBall(x, y));
     }
   });
+
+  let pinchStart = 0, pinchZoom = S.zoom;
+  const touchDistance = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  canvas.addEventListener("touchstart", e => {
+    if (e.touches.length === 2){ pinchStart = touchDistance(e.touches[0], e.touches[1]); pinchZoom = S.zoom; e.preventDefault(); }
+  }, {passive:false});
+  canvas.addEventListener("touchmove", e => {
+    if (e.touches.length === 2 && pinchStart){
+      S.zoom = Math.max(0.55, Math.min(2.5, pinchZoom * touchDistance(e.touches[0], e.touches[1]) / pinchStart));
+      e.preventDefault();
+    }
+  }, {passive:false});
+  canvas.addEventListener("touchend", e => { if (e.touches.length < 2) pinchStart = 0; }, {passive:false});
 
   document.addEventListener("pointerdown", ensureAudio);
   document.addEventListener("keydown", e => {
